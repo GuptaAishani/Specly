@@ -19,7 +19,6 @@ let routing = false;
 let recoveryMode = mode === 'recovery';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const googleIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.06H12v3.9h5.38a4.6 4.6 0 0 1-1.99 3.02v2.53h3.22c1.88-1.73 2.99-4.28 2.99-7.39Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.38l-3.22-2.53c-.9.6-2.04.95-3.39.95-2.61 0-4.82-1.76-5.61-4.13H3.06v2.61A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.39 13.91A6 6 0 0 1 6.08 12c0-.66.11-1.3.31-1.91V7.48H3.06A10 10 0 0 0 2 12c0 1.61.38 3.14 1.06 4.52l3.33-2.61Z"/><path fill="#EA4335" d="M12 5.96c1.47 0 2.78.51 3.82 1.49l2.86-2.86A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.94 5.48l3.33 2.61C7.18 7.72 9.39 5.96 12 5.96Z"/></svg>`;
 
 function setBusy(value){ card?.setAttribute('aria-busy', String(value)); }
 function message(text='', error=false){
@@ -42,12 +41,8 @@ function authTabs(active){
     <button class="auth-tab ${active==='signup'?'active':''}" type="button" data-mode="signup" role="tab" aria-selected="${active==='signup'}">Create account</button>
   </div>`;
 }
-function googleButton(label='Continue with Google'){
-  return `<button class="google-button" type="button" data-google>${googleIcon}<span>${label}</span></button>`;
-}
 function bindCommon(){
   card.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
-  card.querySelector('[data-google]')?.addEventListener('click', handleGoogle);
   card.querySelectorAll('[data-toggle-password]').forEach(btn => btn.addEventListener('click', () => {
     const target = document.getElementById(btn.dataset.togglePassword);
     if(!target) return;
@@ -61,8 +56,6 @@ function renderSignIn(){
   card.innerHTML = `${authTabs('signin')}
     <h2>Welcome back.</h2>
     <p class="auth-subtitle">Sign in to your Specly account. Active members go straight back to the project studio.</p>
-    ${googleButton('Continue with Google')}
-    <div class="auth-divider">or</div>
     <form id="signin-form">
       <label for="signin-email">Email</label>
       <input id="signin-email" name="email" type="email" autocomplete="email" required placeholder="you@example.com">
@@ -80,8 +73,6 @@ function renderSignUp(){
   card.innerHTML = `${authTabs('signup')}
     <h2>Create your Specly account.</h2>
     <p class="auth-subtitle">One account keeps your sign-in, membership, and billing access together.</p>
-    ${googleButton('Sign up with Google')}
-    <div class="auth-divider">or</div>
     <form id="signup-form">
       <label for="signup-name">Name</label>
       <input id="signup-name" name="name" type="text" autocomplete="name" maxlength="80" placeholder="Your name">
@@ -117,7 +108,7 @@ function renderSetPassword(user, fromRecovery=false){
   const email = user?.email || '';
   card.innerHTML = `<p class="eyebrow">${fromRecovery?'Password recovery':'Sign-in settings'}</p>
     <h2>${fromRecovery?'Choose a new password.':'Set or change your password.'}</h2>
-    <p class="auth-subtitle">${email?`This password will be used for <strong>${esc(email)}</strong>.`:''} You can still use Google sign-in later if you connect the same email address.</p>
+    <p class="auth-subtitle">${email?`This password will be used for <strong>${esc(email)}</strong>.`:''} Use this password whenever you return to Specly.</p>
     <form id="password-form">
       <div class="password-row"><label for="new-password">New password</label><button type="button" data-toggle-password="new-password">Show</button></div>
       <input id="new-password" name="password" type="password" autocomplete="new-password" minlength="8" required>
@@ -266,18 +257,6 @@ async function handleSetPassword(event){
 function buildLoginRedirect(){
   const next = params.get('next');
   return next ? `${LOGIN_URL}?next=${encodeURIComponent(next)}` : LOGIN_URL;
-}
-async function handleGoogle(){
-  const button = card.querySelector('[data-google]');
-  if(button) button.disabled = true;
-  message('Opening Google sign in…');
-  try{
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: buildLoginRedirect() }
-    });
-    if(error) throw error;
-  }catch(error){ console.error(error); message(error?.message || 'Google sign in is not available yet.', true); if(button) button.disabled = false; }
 }
 
 supabase.auth.onAuthStateChange((event, session) => {

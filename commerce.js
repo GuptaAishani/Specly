@@ -35,7 +35,7 @@ function renderSignedOut() {
   card.innerHTML = `
     <p class="eyebrow">Specly account</p>
     <h2>Sign in to continue.</h2>
-    <p>Specly now uses a normal account login. Sign in with Google or your email and password to access an existing membership or continue to checkout.</p>
+    <p>Specly now uses a normal account login. Sign in with your email and password to access an existing membership or continue to checkout.</p>
     <div class="actions">
       <a class="button primary" href="./login.html?next=account">Sign in →</a>
       <a class="button ghost" href="./login.html?mode=signup&next=checkout">Create account</a>

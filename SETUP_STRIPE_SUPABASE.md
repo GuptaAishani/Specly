@@ -6,7 +6,7 @@ In **Authentication → URL Configuration**, set:
 - Additional Redirect URL: `https://GuptaAishani.github.io/Specly/login.html`
 - Keep `https://GuptaAishani.github.io/Specly/commerce.html` allowed too if it is already present.
 
-`login.html` is now the account sign-in page. Email/password sign-in does not need an email redirect, but account confirmation, password recovery, and Google OAuth do. If you later move Specly to a custom domain, update Supabase URL Configuration and `LOGIN_URL` in `login.js`.
+`login.html` is now the account sign-in page. Email/password sign-in does not need an email redirect, but account confirmation and password recovery do. If you later move Specly to a custom domain, update Supabase URL Configuration and `LOGIN_URL` in `login.js`.
 
 # Specly Stripe + Supabase completion checklist
 
