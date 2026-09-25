@@ -3,3 +3,17 @@
 .membership-story{animation:specly-enter .5s ease both}.membership-work{animation:specly-enter .55s .1s ease both}.plan-card{transition:box-shadow .25s,border-color .25s}.plan-card:hover{box-shadow:0 12px 30px #192e450b;border-color:#176c58}@media(prefers-reduced-motion:reduce){.membership-story,.membership-work{animation:none}.plan-card{transition:none}}
 
 .plan-fine a,.membership-note a{color:#235bc2}.membership-work footer a{color:#235bc2;text-decoration:none}.membership-work footer a:hover{text-decoration:underline}
+
+.account-card form>.button.email-sent{
+  background:#176c58;
+  border-color:#176c58;
+  color:#fff;
+  opacity:1;
+}
+#account-message:not(.error):not(:empty){
+  padding:12px 14px;
+  border:1px solid #b9d8cd;
+  border-radius:7px;
+  background:#eef7f3;
+  color:#176c58;
+}

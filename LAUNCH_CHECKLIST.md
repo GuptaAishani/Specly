@@ -1,6 +1,8 @@
 # Specly launch checklist
 
 ## Required before taking customers
+- [ ] Supabase Auth Site URL is `https://GuptaAishani.github.io/Specly/`.
+- [ ] Supabase Auth Additional Redirect URL includes `https://GuptaAishani.github.io/Specly/commerce.html`.
 - [ ] Replace `YOUR_SUPPORT_EMAIL` in `contact.html` with a real monitored support email.
 - [ ] Make the same support email visible in Stripe receipts/customer portal settings.
 - [ ] Confirm Supabase Site URL and Redirect URL point to the final public domain.
