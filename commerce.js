@@ -21,6 +21,45 @@ function formatDate(value){
   try{return new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value))}catch{return value}
 }
 
+let signInCooldownTimer = null;
+
+function getRateLimitSeconds(error){
+  const raw = `${error?.message || ''} ${error?.code || ''}`;
+  const match = raw.match(/after\s+(\d+)\s+seconds?/i);
+  return match ? Math.max(1, Number(match[1])) : 60;
+}
+
+function startSignInCooldown(button, seconds = 60, sent = true){
+  if(signInCooldownTimer) clearInterval(signInCooldownTimer);
+
+  let remaining = Math.max(1, Number(seconds) || 60);
+  button.disabled = true;
+  button.classList.toggle('email-sent', sent);
+
+  const paint = () => {
+    button.textContent = sent
+      ? `Email sent ✓ · resend in ${remaining}s`
+      : `Please wait ${remaining}s`;
+  };
+
+  paint();
+
+  signInCooldownTimer = setInterval(() => {
+    remaining -= 1;
+
+    if(remaining <= 0){
+      clearInterval(signInCooldownTimer);
+      signInCooldownTimer = null;
+      button.disabled = false;
+      button.classList.remove('email-sent');
+      button.textContent = 'Resend sign-in link →';
+      return;
+    }
+
+    paint();
+  }, 1000);
+}
+
 async function getSubscription(userId){
   const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id',userId).maybeSingle();
   if(error) throw error;
@@ -81,16 +120,49 @@ function renderMember(user, subscription){
 
 async function handleSignIn(event) {
   event.preventDefault();
-  const form = event.currentTarget, button=form.querySelector('button');
+
+  const form = event.currentTarget;
+  const button = form.querySelector('button');
   const email = String(new FormData(form).get("email") || "").trim();
-  if (!email) return;
-  button.disabled=true; message("Sending your sign-in link…");
+
+  if (!email || button.disabled) return;
+
+  button.disabled = true;
+  button.classList.remove('email-sent');
+  button.textContent = 'Sending…';
+  message("Sending your secure sign-in link…");
+
   try {
-    const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo:AUTH_REDIRECT_URL } });
-    if(error)throw error;
-    message("Check your email for the secure sign-in link. It will return you to Specly after you click it.");
-  } catch(error){console.error(error);message(error.message||"Could not send the sign-in link.",true)}
-  finally{button.disabled=false}
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: AUTH_REDIRECT_URL }
+    });
+
+    if (error) throw error;
+
+    message(`Email sent to ${email}. Open the newest email and click the sign-in link to return to Specly.`);
+    startSignInCooldown(button, 60, true);
+  } catch (error) {
+    console.error(error);
+
+    const rateLimited =
+      error?.status === 429 ||
+      error?.code === 'over_email_send_rate_limit' ||
+      /rate limit|only request this after/i.test(error?.message || '');
+
+    if (rateLimited) {
+      const seconds = getRateLimitSeconds(error);
+      message(
+        `A sign-in email was already requested recently. Check your inbox for the newest email, or resend in about ${seconds} seconds.`
+      );
+      startSignInCooldown(button, seconds, false);
+      return;
+    }
+
+    message(error?.message || "Could not send the sign-in link.", true);
+    button.disabled = false;
+    button.textContent = 'Send sign-in link →';
+  }
 }
 
 async function handleCheckout(event){
