@@ -59,3 +59,8 @@ footer a{color:#235bc2;text-decoration:none}footer a:hover{text-decoration:under
 .growth-note{margin-top:14px;padding:14px 16px;border-left:3px solid var(--lime);background:color-mix(in srgb,var(--lime) 8%,transparent);border-radius:6px}
 .library-growth{margin:18px 0 0;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
 .library-growth strong{color:var(--ink)}
+
+
+/* Returning-member access + compact member library filter */
+.member-signin-link{font-size:14px;font-weight:600;color:#235bc2;text-decoration:none;white-space:nowrap}.member-signin-link:hover{text-decoration:underline}.returning-signin{font-size:14px;margin:12px 0 0}.returning-signin a{color:#235bc2;font-weight:600}.library-filter{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin:30px 0 8px;padding:22px 24px;border:1px solid var(--line);border-radius:10px;background:#fff}.library-filter h2{font-family:inherit;font-size:26px;margin:3px 0 5px}.library-filter p{margin:0;color:var(--muted)}.difficulty-select{min-width:240px}.difficulty-select label{display:block;font-size:14px;font-weight:650;margin-bottom:8px;color:var(--ink)}.sample-main .difficulty-select select{width:100%;margin:0;padding:11px 38px 11px 13px;border:1px solid #b9cbd2;border-radius:7px;background:#fff;color:var(--ink);font-weight:600}.returning-member-note{padding:12px 14px;border-radius:7px;background:#f5f8fa;border:1px solid #dbe3e9;font-size:14px!important;line-height:1.5!important}
+@media(max-width:700px){.library-filter{align-items:stretch;flex-direction:column;gap:18px}.difficulty-select{min-width:0;width:100%}.member-signin-link{font-size:13px}.topright .member-signin-link{display:none}}

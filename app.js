@@ -9,6 +9,9 @@ let active=null;
 let design={};
 let tested=false;
 let notes='';
+let selectedDifficulty='beginner';
+
+const difficultyLabels={beginner:'Easy',intermediate:'Medium',advanced:'Hard'};
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const title=s=>s.charAt(0).toUpperCase()+s.slice(1);
@@ -29,11 +32,15 @@ async function fetchProjects(){
   projects=data?.projects||[];
 }
 
-function header(){return `<header class="topbar"><button class="brand" data-home>specly<small>Engineering for your portfolio</small></button><div class="topright"><span class="storage">Member studio · local saves</span><a class="button small" href="./commerce.html">Account & billing</a></div></header>`}
+function header(){
+  const email=globalThis.SPECLY_USER_EMAIL||'';
+  return `<header class="topbar"><button class="brand" data-home>specly<small>Engineering for your portfolio</small></button><div class="topright"><span class="storage">${email?`Signed in · ${esc(email)}`:'Member studio · local saves'}</span><a class="button small" href="./commerce.html">Account & billing</a></div></header>`
+}
 
 function catalog(){
-  const groups=['beginner','intermediate','advanced'];
-  return `<main id="main" class="sample-main"><section class="intro"><div><div class="eyebrow">Member studio</div><h1>Choose a project.<br><em>Engineer your evidence.</em></h1><p>45 guided projects across structures, vibration, and thermal design. Tune the design, run the model, save revisions, and export a portfolio report.</p><div class="library-growth"><strong>Always growing.</strong> New projects are added consistently, and personalized project briefs are coming soon.</div></div></section>${groups.map(level=>`<div class="sectionbar"><strong>${title(level)}</strong><span class="count">${projects.filter(p=>p.level===level).length} projects</span></div><div class="cards">${projects.filter(p=>p.level===level).map(p=>`<article class="missioncard" style="--accent:${families[p.type].color}"><div class="cardtop"><span>${families[p.type].name}</span><span>${p.id}</span></div><div class="diagram sample-card-diagram">${missionDiagram(p.type,p.design)}</div><div class="cardbody"><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p></div><div class="cardfoot"><span>${title(p.level)}</span><button class="circlebutton" data-project="${p.id}">Open project →</button></div></article>`).join('')}</div>`).join('')}<footer><span>Specly · Your work. Your decisions.</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
+  const visible=projects.filter(p=>p.level===selectedDifficulty);
+  const difficultyName=difficultyLabels[selectedDifficulty];
+  return `<main id="main" class="sample-main"><section class="intro"><div><div class="eyebrow">Member studio</div><h1>Choose a project.<br><em>Engineer your evidence.</em></h1><p>45 guided projects across structures, vibration, and thermal design. Pick a difficulty, tune the design, run the model, save revisions, and export a portfolio report.</p><div class="library-growth"><strong>Always growing.</strong> New projects are added consistently, and personalized project briefs are coming soon.</div></div></section><section class="library-filter" aria-labelledby="difficulty-heading"><div><p class="eyebrow" id="difficulty-heading">Project library</p><h2>${difficultyName} projects</h2><p>Showing ${visible.length} of ${projects.length} member projects.</p></div><div class="difficulty-select"><label for="difficulty-filter">Difficulty</label><select id="difficulty-filter" data-difficulty><option value="beginner" ${selectedDifficulty==='beginner'?'selected':''}>Easy</option><option value="intermediate" ${selectedDifficulty==='intermediate'?'selected':''}>Medium</option><option value="advanced" ${selectedDifficulty==='advanced'?'selected':''}>Hard</option></select></div></section><div class="sectionbar"><strong>${difficultyName}</strong><span class="count">${visible.length} projects</span></div><div class="cards">${visible.map(p=>`<article class="missioncard" style="--accent:${families[p.type].color}"><div class="cardtop"><span>${families[p.type].name}</span><span>${p.id}</span></div><div class="diagram sample-card-diagram">${missionDiagram(p.type,p.design)}</div><div class="cardbody"><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p></div><div class="cardfoot"><span>${difficultyLabels[p.level]}</span><button class="circlebutton" data-project="${p.id}">Open project →</button></div></article>`).join('')}</div><footer><span>Specly · Your work. Your decisions.</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
 }
 
 function metrics(result){
@@ -61,7 +68,7 @@ function controls(){
 }
 
 function workspace(){
-  return `<main id="main" class="sample-main"><div class="workspacehead"><div><p class="eyebrow">${title(active.level)} · ${families[active.type].name}</p><h1>${esc(active.title)}</h1><p>${esc(active.description)}</p></div><button class="button ghost" data-home>All projects</button></div><div class="workgrid"><section class="panel controls"><p class="eyebrow">The brief</p><h2>${esc(active.context)}</h2><p>${esc(active.objective)}</p>${controls()}<div class="field"><label for="project-notes">Engineering notes</label><textarea id="project-notes" rows="5" placeholder="Record tradeoffs, assumptions, and what you would test next…">${esc(notes)}</textarea></div><div class="actions"><button class="button primary" data-test>Run analytical test →</button><button class="button ghost" data-save>Save revision</button><button class="button ghost" data-export>Export report</button></div><p class="note">Saved locally in this browser. Export reports to keep a portable copy.</p></section><div id="member-visual">${visual()}</div></div><section class="panel" id="member-results" aria-live="polite">${results()}</section><details class="panel"><summary>Model assumptions and limitations</summary><p>${esc(active.assumptions)}</p></details><footer><span>Specly · ${esc(active.id)}</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
+  return `<main id="main" class="sample-main"><div class="workspacehead"><div><p class="eyebrow">${difficultyLabels[active.level]} · ${families[active.type].name}</p><h1>${esc(active.title)}</h1><p>${esc(active.description)}</p></div><button class="button ghost" data-home>All projects</button></div><div class="workgrid"><section class="panel controls"><p class="eyebrow">The brief</p><h2>${esc(active.context)}</h2><p>${esc(active.objective)}</p>${controls()}<div class="field"><label for="project-notes">Engineering notes</label><textarea id="project-notes" rows="5" placeholder="Record tradeoffs, assumptions, and what you would test next…">${esc(notes)}</textarea></div><div class="actions"><button class="button primary" data-test>Run analytical test →</button><button class="button ghost" data-save>Save revision</button><button class="button ghost" data-export>Export report</button></div><p class="note">Saved locally in this browser. Export reports to keep a portable copy.</p></section><div id="member-visual">${visual()}</div></div><section class="panel" id="member-results" aria-live="polite">${results()}</section><details class="panel"><summary>Model assumptions and limitations</summary><p>${esc(active.assumptions)}</p></details><footer><span>Specly · ${esc(active.id)}</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
 }
 
 function render(){app.innerHTML=header()+(active?workspace():catalog());}
@@ -77,7 +84,7 @@ function openProject(id){
 
 function exportReport(){
   const r=evaluateMission(active.mission,design);
-  const lines=[`# ${active.title}`,``,`**Project ID:** ${active.id}`,`**Level:** ${title(active.level)}`,`**Category:** ${families[active.type].name}`,``,`## Brief`,active.context,``,active.objective,``,`## Final design`,...Object.entries(design).map(([k,v])=>`- ${k}: ${v}`),``,`## Analytical results`,...r.checks.map(c=>`- ${c.label}: ${fmt(c.value,3)} ${c.unit} — ${c.pass?'PASS':'REVISE'} (requirement ${c.minimum?'≥':'≤'} ${fmt(c.limit,3)} ${c.unit})`),``,`**Overall:** ${r.pass?'Modeled requirements met':'Revision required'}`,``,`## Engineering notes`,notes||'No notes entered.',``,`## Assumptions`,active.assumptions,``,`> Educational model only; not an engineering certification or substitute for hardware validation.`];
+  const lines=[`# ${active.title}`,``,`**Project ID:** ${active.id}`,`**Difficulty:** ${difficultyLabels[active.level]}`,`**Category:** ${families[active.type].name}`,``,`## Brief`,active.context,``,active.objective,``,`## Final design`,...Object.entries(design).map(([k,v])=>`- ${k}: ${v}`),``,`## Analytical results`,...r.checks.map(c=>`- ${c.label}: ${fmt(c.value,3)} ${c.unit} — ${c.pass?'PASS':'REVISE'} (requirement ${c.minimum?'≥':'≤'} ${fmt(c.limit,3)} ${c.unit})`),``,`**Overall:** ${r.pass?'Modeled requirements met':'Revision required'}`,``,`## Engineering notes`,notes||'No notes entered.',``,`## Assumptions`,active.assumptions,``,`> Educational model only; not an engineering certification or substitute for hardware validation.`];
   const blob=new Blob([lines.join('\n')],{type:'text/markdown'}),url=URL.createObjectURL(blob),a=document.createElement('a');
   a.href=url;a.download=`${active.id}-${active.title.toLowerCase().replace(/[^a-z0-9]+/g,'-')}.md`;a.click();URL.revokeObjectURL(url);toast('Report exported.');
 }
@@ -101,6 +108,12 @@ document.addEventListener('input',e=>{
 });
 
 document.addEventListener('change',e=>{
+  if(e.target.matches('[data-difficulty]')){
+    selectedDifficulty=e.target.value;
+    render();
+    window.scrollTo({top:Math.max(0,document.querySelector('.library-filter')?.offsetTop-90||0),behavior:'smooth'});
+    return;
+  }
   if(!active||!e.target.matches('[data-material]'))return;
   design={...design,material:e.target.value};tested=false;
   document.querySelector('#member-visual').innerHTML=visual();

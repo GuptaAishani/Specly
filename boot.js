@@ -2,7 +2,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://mpseexgimmtdfqtirohj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_FrtttA6zw63UzoVoeqs8XQ_21Mkp4oS";
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 async function hasMemberAccess(userId){
   const { data, error } = await supabase
@@ -24,6 +30,7 @@ try {
   } else if(await hasMemberAccess(session.user.id)){
     globalThis.SPECLY_COMMERCIAL = true;
     globalThis.SPECLY_USER_ID = session.user.id;
+    globalThis.SPECLY_USER_EMAIL = session.user.email || "";
     globalThis.SPECLY_SUPABASE = supabase;
     await import('./app.js');
   } else {

@@ -2,7 +2,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://mpseexgimmtdfqtirohj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_FrtttA6zw63UzoVoeqs8XQ_21Mkp4oS";
-const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 const AUTH_REDIRECT_URL = "https://GuptaAishani.github.io/Specly/commerce.html";
 
 const $ = (selector) => document.querySelector(selector);
@@ -30,14 +36,15 @@ async function getSubscription(userId){
 function renderSignedOut() {
   card.innerHTML = `
     <ol class="account-steps" aria-label="Account setup"><li aria-current="step">1. Email</li><li>2. Checkout</li><li>3. Build</li></ol>
-    <h2>Start something worth building.</h2>
-    <p>Enter your email and we’ll send you a secure sign-in link. After you sign in, you can continue to secure checkout and get your first 3 days free.</p>
+    <p class="eyebrow">Member sign in</p>
+    <h2>Sign in to Specly.</h2>
+    <p>Enter your email and we’ll send you a secure sign-in link. Returning members regain access to the studio; new members can continue to checkout after signing in.</p>
     <form id="signin-form">
       <label for="email">Email address</label>
       <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com">
       <button class="button primary" type="submit">Send sign-in link →</button>
     </form>
-    <small>Signing in does not start billing or charge you. Your first 3 days begin only after you complete Stripe Checkout.</small>
+    <small>Already a member? Use the email connected to your Specly membership. Signing in never starts a charge.</small>
     <a class="button ghost" style="margin-top:18px" href="./">Try the free samples</a>`;
   setBusy(false);
   $("#signin-form")?.addEventListener("submit", handleSignIn);
@@ -69,6 +76,7 @@ function renderMember(user, subscription){
     <h2>${trialing?'Your first 3 days are active.':'Your Specly membership is active.'}</h2>
     <p>Signed in as <strong>${esc(user.email||'')}</strong>.</p>
     ${end?`<p>${trialing?'First 3 days end':'Current billing period ends'} <strong>${esc(formatDate(end))}</strong>${subscription.cancel_at_period_end?' · cancellation scheduled':''}.</p>`:''}
+    <p class="returning-member-note">You can close Specly and come back anytime. This browser keeps your session when possible; if you are signed out later, use this same email to regain access.</p>
     <div class="actions">
       <a class="button primary" href="./">Open member studio →</a>
       <button class="button ghost" id="portal-button" type="button">Manage billing</button>
