@@ -21,45 +21,6 @@ function formatDate(value){
   try{return new Intl.DateTimeFormat('en-US',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value))}catch{return value}
 }
 
-let signInCooldownTimer = null;
-
-function getRateLimitSeconds(error){
-  const raw = `${error?.message || ''} ${error?.code || ''}`;
-  const match = raw.match(/after\s+(\d+)\s+seconds?/i);
-  return match ? Math.max(1, Number(match[1])) : 60;
-}
-
-function startSignInCooldown(button, seconds = 60, sent = true){
-  if(signInCooldownTimer) clearInterval(signInCooldownTimer);
-
-  let remaining = Math.max(1, Number(seconds) || 60);
-  button.disabled = true;
-  button.classList.toggle('email-sent', sent);
-
-  const paint = () => {
-    button.textContent = sent
-      ? `Email sent ✓ · resend in ${remaining}s`
-      : `Please wait ${remaining}s`;
-  };
-
-  paint();
-
-  signInCooldownTimer = setInterval(() => {
-    remaining -= 1;
-
-    if(remaining <= 0){
-      clearInterval(signInCooldownTimer);
-      signInCooldownTimer = null;
-      button.disabled = false;
-      button.classList.remove('email-sent');
-      button.textContent = 'Resend sign-in link →';
-      return;
-    }
-
-    paint();
-  }, 1000);
-}
-
 async function getSubscription(userId){
   const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id',userId).maybeSingle();
   if(error) throw error;
@@ -141,7 +102,15 @@ async function handleSignIn(event) {
     if (error) throw error;
 
     message(`Email sent to ${email}. Open the newest email and click the sign-in link to return to Specly.`);
-    startSignInCooldown(button, 60, true);
+    button.classList.add('email-sent');
+    button.textContent = 'Email sent ✓';
+
+    setTimeout(() => {
+      button.disabled = false;
+      button.classList.remove('email-sent');
+      button.textContent = 'Send another sign-in link →';
+    }, 1800);
+
   } catch (error) {
     console.error(error);
 
@@ -151,16 +120,16 @@ async function handleSignIn(event) {
       /rate limit|only request this after/i.test(error?.message || '');
 
     if (rateLimited) {
-      const seconds = getRateLimitSeconds(error);
       message(
-        `A sign-in email was already requested recently. Check your inbox for the newest email, or resend in about ${seconds} seconds.`
+        "Too many sign-in emails were requested too quickly. Wait a moment, then try again.",
+        true
       );
-      startSignInCooldown(button, seconds, false);
-      return;
+    } else {
+      message(error?.message || "Could not send the sign-in link.", true);
     }
 
-    message(error?.message || "Could not send the sign-in link.", true);
     button.disabled = false;
+    button.classList.remove('email-sent');
     button.textContent = 'Send sign-in link →';
   }
 }
