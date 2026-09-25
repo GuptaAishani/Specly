@@ -79,7 +79,7 @@ For GitHub Pages, upload/replace the root frontend files from this ZIP:
 - `index.html`
 - `style.css`
 - `boot.js`
-- `demo.js`
+- `free-sample.js`
 - `samples.js`
 - `sample-engine.js`
 - `commerce.html`
@@ -98,12 +98,16 @@ Because this project is using Stripe live mode, a checkout can create a real sub
 2. Continue to Stripe Checkout.
 3. Complete checkout only with a real payment method when you intentionally want to create a live subscription.
 4. Return to Specly; the page waits briefly for the Stripe webhook to update Supabase.
-5. Confirm `public.subscriptions` contains your Supabase `user_id`, Stripe customer/subscription IDs, and status `trialing` or `active`.
-6. Open the main site. `boot.js` should load `app.js` only for `trialing` or `active` members.
+5. Confirm `public.subscriptions` contains your Supabase `user_id`, Stripe customer/subscription IDs, and status `introductory accessing` or `active`.
+6. Open the main site. `boot.js` should load `app.js` only for `introductory accessing` or `active` members.
 7. Open **Account & billing → Manage billing** and confirm Stripe Customer Portal opens.
 
 ## How access works
 
-`boot.js` checks the signed-in Supabase user and reads only that user's `subscriptions` row. `trialing` and `active` statuses unlock `app.js`. The 45 member project briefs are returned by the protected `member-projects` Edge Function only after the server confirms the user has an active/trialing subscription.
+`boot.js` checks the signed-in Supabase user and reads only that user's `subscriptions` row. `introductory accessing` and `active` statuses unlock `app.js`. The 45 member project briefs are returned by the protected `member-projects` Edge Function only after the server confirms the user has an active/introductory accessing subscription.
 
 This is stronger than hiding the paid project catalog in a public GitHub JavaScript file.
+
+
+## Launch trust pages
+The site now includes `terms.html`, `privacy.html`, `refund.html`, `faq.html`, and `contact.html`. Replace `YOUR_SUPPORT_EMAIL` in `contact.html` before launch and review the legal copy for your actual business practices.

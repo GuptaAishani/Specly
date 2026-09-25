@@ -30,26 +30,26 @@ function renderSignedOut() {
   card.innerHTML = `
     <ol class="account-steps" aria-label="Account setup"><li aria-current="step">1. Email</li><li>2. Checkout</li><li>3. Build</li></ol>
     <h2>Start something worth building.</h2>
-    <p>Enter your email and we’ll send you a secure sign-in link. After you sign in, you can start your 3-day trial.</p>
+    <p>Enter your email and we’ll send you a secure sign-in link. After you sign in, you can continue to secure checkout and get your first 3 days free.</p>
     <form id="signin-form">
       <label for="email">Email address</label>
       <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com">
       <button class="button primary" type="submit">Send sign-in link →</button>
     </form>
-    <small>Signing in does not start your trial or charge you. Your trial begins only after you complete Stripe Checkout.</small>
+    <small>Signing in does not start billing or charge you. Your first 3 days begin only after you complete Stripe Checkout.</small>
     <a class="button ghost" style="margin-top:18px" href="./">Try the free samples</a>`;
   setBusy(false);
   $("#signin-form")?.addEventListener("submit", handleSignIn);
 }
 
 function renderCheckout(user, hasUsedTrial=false) {
-  const trialCopy=hasUsedTrial?'This account has already used its introductory trial. Checkout will show the amount and billing date before you confirm.':'I authorize US$15/month plus applicable tax after my 3-day free trial, automatically renewed until I cancel. I can cancel before the trial ends to avoid the first charge.';
+  const trialCopy=hasUsedTrial?'This account has already used its introductory 3-day free period. Checkout will show the amount and billing date before you confirm.':'I authorize US$15/month plus applicable tax after my first 3 days free, automatically renewed until I cancel. I can cancel during those first 3 days to avoid the first charge.';
   card.innerHTML = `
     <ol class="account-steps" aria-label="Account setup"><li>1. Email</li><li aria-current="step">2. Checkout</li><li>3. Build</li></ol>
     <h2>Your project library is waiting.</h2>
     <p>Signed in as <strong>${esc(user.email || "")}</strong>.</p>
     <form id="checkout-form">
-      <label class="consent-label"><input name="accepted" type="checkbox" required><span>${trialCopy}</span></label>
+      <label class="consent-label"><input name="accepted" type="checkbox" required><span>${trialCopy} I also agree to the <a href="./terms.html" target="_blank" rel="noopener">Terms</a> and acknowledge the <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a> and <a href="./refund.html" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a>.</span></label>
       <button class="button primary" type="submit">Continue to secure checkout →</button>
     </form>
     <small>Payment details are collected by Stripe. Specly never receives your full card number.</small>
@@ -64,10 +64,10 @@ function renderMember(user, subscription){
   const end=trialing?subscription.trial_end:subscription.current_period_end;
   card.innerHTML=`
     <ol class="account-steps" aria-label="Account setup"><li>1. Email</li><li>2. Checkout</li><li aria-current="step">3. Build</li></ol>
-    <p class="eyebrow">Membership ${trialing?'trial':'active'}</p>
-    <h2>${trialing?'Your 3-day trial is active.':'Your Specly membership is active.'}</h2>
+    <p class="eyebrow">Membership ${trialing?'introductory access':'active'}</p>
+    <h2>${trialing?'Your first 3 days are active.':'Your Specly membership is active.'}</h2>
     <p>Signed in as <strong>${esc(user.email||'')}</strong>.</p>
-    ${end?`<p>${trialing?'Trial ends':'Current billing period ends'} <strong>${esc(formatDate(end))}</strong>${subscription.cancel_at_period_end?' · cancellation scheduled':''}.</p>`:''}
+    ${end?`<p>${trialing?'First 3 days end':'Current billing period ends'} <strong>${esc(formatDate(end))}</strong>${subscription.cancel_at_period_end?' · cancellation scheduled':''}.</p>`:''}
     <div class="actions">
       <a class="button primary" href="./">Open member studio →</a>
       <button class="button ghost" id="portal-button" type="button">Manage billing</button>

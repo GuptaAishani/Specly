@@ -20,7 +20,7 @@ try {
   if(error) throw error;
 
   if(!session?.user){
-    await import('./demo.js');
+    await import('./explore.js');
   } else if(await hasMemberAccess(session.user.id)){
     globalThis.SPECLY_COMMERCIAL = true;
     globalThis.SPECLY_USER_ID = session.user.id;
@@ -28,7 +28,7 @@ try {
     await import('./app.js');
   } else {
     globalThis.SPECLY_USER_ID = session.user.id;
-    await import('./demo.js');
+    await import('./explore.js');
   }
 } catch (error) {
   console.error(error);
