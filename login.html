@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Sign in to your Specly account with Google or your email and password.">
+  <title>Sign in — Specly</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23176c58'/%3E%3Cpath d='M24 8H12a4 4 0 0 0 0 8h8a4 4 0 0 1 0 8H8' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./login.css">
+</head>
+<body class="auth-page">
+  <a class="skip" href="#main">Skip to sign in</a>
+  <header class="auth-header">
+    <a class="auth-brand" href="./">specly<span>Engineering for your portfolio</span></a>
+    <a href="./">Back to Specly ↗</a>
+  </header>
+
+  <main id="main" class="auth-layout">
+    <section class="auth-story" aria-labelledby="auth-story-title">
+      <p class="eyebrow">Your Specly account</p>
+      <h1 id="auth-story-title">Build it once.<br>Come back anytime.</h1>
+      <p class="auth-lead">Use one account for your membership, project library, billing access, and future Specly features.</p>
+      <div class="auth-benefits">
+        <div><span>01</span><p><strong>Sign in normally.</strong><br>Email + password, or continue with Google.</p></div>
+        <div><span>02</span><p><strong>Your membership follows your account.</strong><br>No second checkout when you return.</p></div>
+        <div><span>03</span><p><strong>Pick up where you left off.</strong><br>Active members go straight back to the studio.</p></div>
+      </div>
+    </section>
+
+    <section class="auth-work">
+      <div id="auth-card" class="auth-card" aria-busy="true">
+        <h2>Getting your account ready…</h2>
+      </div>
+      <p id="auth-message" role="status" aria-live="polite"></p>
+      <p class="auth-security">Authentication is handled securely by Supabase. Specly never receives your Google password.</p>
+      <footer class="auth-footer">
+        <a href="./terms.html">Terms</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./refund.html">Refunds</a>
+        <a href="./contact.html">Contact</a>
+      </footer>
+    </section>
+  </main>
+
+  <script type="module" src="./login.js"></script>
+  <script src="./analytics.js"></script>
+</body>
+</html>

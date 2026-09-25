@@ -9,8 +9,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     detectSessionInUrl: true,
   },
 });
-const AUTH_REDIRECT_URL = "https://GuptaAishani.github.io/Specly/commerce.html";
-
 const $ = (selector) => document.querySelector(selector);
 const card = $("#account-card");
 const messageBox = $("#account-message");
@@ -35,19 +33,16 @@ async function getSubscription(userId){
 
 function renderSignedOut() {
   card.innerHTML = `
-    <ol class="account-steps" aria-label="Account setup"><li aria-current="step">1. Email</li><li>2. Checkout</li><li>3. Build</li></ol>
-    <p class="eyebrow">Member sign in</p>
-    <h2>Sign in to Specly.</h2>
-    <p>Enter your email and we’ll send you a secure sign-in link. Returning members regain access to the studio; new members can continue to checkout after signing in.</p>
-    <form id="signin-form">
-      <label for="email">Email address</label>
-      <input id="email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com">
-      <button class="button primary" type="submit">Send sign-in link →</button>
-    </form>
-    <small>Already a member? Use the email connected to your Specly membership. Signing in never starts a charge.</small>
+    <p class="eyebrow">Specly account</p>
+    <h2>Sign in to continue.</h2>
+    <p>Specly now uses a normal account login. Sign in with Google or your email and password to access an existing membership or continue to checkout.</p>
+    <div class="actions">
+      <a class="button primary" href="./login.html?next=account">Sign in →</a>
+      <a class="button ghost" href="./login.html?mode=signup&next=checkout">Create account</a>
+    </div>
+    <small>Previously used the old email-link sign in? On the login page, choose <strong>Forgot password</strong> once to create a password for that same account.</small>
     <a class="button ghost" style="margin-top:18px" href="./">Try the free samples</a>`;
   setBusy(false);
-  $("#signin-form")?.addEventListener("submit", handleSignIn);
 }
 
 function renderCheckout(user, hasUsedTrial=false) {
@@ -61,7 +56,7 @@ function renderCheckout(user, hasUsedTrial=false) {
       <button class="button primary" type="submit">Continue to secure checkout →</button>
     </form>
     <small>Payment details are collected by Stripe. Specly never receives your full card number.</small>
-    <div class="actions"><button class="textbutton" id="signout-button" type="button">Sign out</button></div>`;
+    <div class="actions"><a class="textbutton" href="./login.html?mode=set-password&next=account">Set / change password</a><button class="textbutton" id="signout-button" type="button">Sign out</button></div>`;
   setBusy(false);
   $("#checkout-form")?.addEventListener("submit", handleCheckout);
   $("#signout-button")?.addEventListener("click", handleSignOut);
@@ -80,6 +75,7 @@ function renderMember(user, subscription){
     <div class="actions">
       <a class="button primary" href="./">Open member studio →</a>
       <button class="button ghost" id="portal-button" type="button">Manage billing</button>
+      <a class="button ghost" href="./login.html?mode=set-password&next=account">Sign-in settings</a>
       <button class="textbutton" id="signout-button" type="button">Sign out</button>
     </div>`;
   setBusy(false);
@@ -87,60 +83,6 @@ function renderMember(user, subscription){
   $("#signout-button")?.addEventListener("click",handleSignOut);
 }
 
-async function handleSignIn(event) {
-  event.preventDefault();
-
-  const form = event.currentTarget;
-  const button = form.querySelector('button');
-  const email = String(new FormData(form).get("email") || "").trim();
-
-  if (!email || button.disabled) return;
-
-  button.disabled = true;
-  button.classList.remove('email-sent');
-  button.textContent = 'Sending…';
-  message("Sending your secure sign-in link…");
-
-  try {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: AUTH_REDIRECT_URL }
-    });
-
-    if (error) throw error;
-
-    message(`Email sent to ${email}. Open the newest email and click the sign-in link to return to Specly.`);
-    button.classList.add('email-sent');
-    button.textContent = 'Email sent ✓';
-
-    setTimeout(() => {
-      button.disabled = false;
-      button.classList.remove('email-sent');
-      button.textContent = 'Send another sign-in link →';
-    }, 1800);
-
-  } catch (error) {
-    console.error(error);
-
-    const rateLimited =
-      error?.status === 429 ||
-      error?.code === 'over_email_send_rate_limit' ||
-      /rate limit|only request this after/i.test(error?.message || '');
-
-    if (rateLimited) {
-      message(
-        "Too many sign-in emails were requested too quickly. Wait a moment, then try again.",
-        true
-      );
-    } else {
-      message(error?.message || "Could not send the sign-in link.", true);
-    }
-
-    button.disabled = false;
-    button.classList.remove('email-sent');
-    button.textContent = 'Send sign-in link →';
-  }
-}
 
 async function handleCheckout(event){
   event.preventDefault();
@@ -169,7 +111,7 @@ async function handleSignOut(){
   message('Signing out…');
   const {error}=await supabase.auth.signOut();
   if(error){message(error.message||'Could not sign out.',true);return}
-  history.replaceState({},'',location.pathname);renderSignedOut();message('Signed out.');
+  location.assign('./login.html');
 }
 
 async function waitForSubscription(userId, attempts=10){

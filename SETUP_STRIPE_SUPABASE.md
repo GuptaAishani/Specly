@@ -3,9 +3,10 @@
 In **Authentication → URL Configuration**, set:
 
 - Site URL: `https://GuptaAishani.github.io/Specly/`
-- Additional Redirect URL: `https://GuptaAishani.github.io/Specly/commerce.html`
+- Additional Redirect URL: `https://GuptaAishani.github.io/Specly/login.html`
+- Keep `https://GuptaAishani.github.io/Specly/commerce.html` allowed too if it is already present.
 
-The production `commerce.js` also hardcodes that exact redirect for passwordless sign-in so testing from localhost does not create a localhost email link. If you later move Specly to a custom domain, update both Supabase URL Configuration and `AUTH_REDIRECT_URL` in `commerce.js`.
+`login.html` is now the account sign-in page. Email/password sign-in does not need an email redirect, but account confirmation, password recovery, and Google OAuth do. If you later move Specly to a custom domain, update Supabase URL Configuration and `LOGIN_URL` in `login.js`.
 
 # Specly Stripe + Supabase completion checklist
 
