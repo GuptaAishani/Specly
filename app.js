@@ -10,18 +10,137 @@ let design={};
 let tested=false;
 let notes='';
 let selectedDifficulty='beginner';
+let progressCache={};
+let autoSaveTimer=null;
 
 const difficultyLabels={beginner:'Easy',intermediate:'Medium',advanced:'Hard'};
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const saved=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')}catch{return {}}};
 function writeSaved(data){localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}
-function saveCurrent(){
+
+function normalizeProgress(row={}){
+  return {
+    design:row.design||{},
+    notes:row.notes||'',
+    tested:Boolean(row.tested),
+    startedAt:row.started_at||row.startedAt||row.updated_at||row.updatedAt||new Date().toISOString(),
+    updatedAt:row.updated_at||row.updatedAt||new Date().toISOString()
+  };
+}
+
+async function loadProjectProgress(){
+  const local=saved();
+  progressCache={...local};
+
+  const {data,error}=await supabase
+    .from('project_progress')
+    .select('project_id,design,notes,tested,started_at,updated_at')
+    .order('updated_at',{ascending:false});
+
+  if(error){
+    console.warn('Could not load cloud project progress. Using local fallback.',error);
+    return;
+  }
+
+  const cloudIds=new Set();
+  for(const row of data||[]){
+    cloudIds.add(row.project_id);
+    progressCache[row.project_id]=normalizeProgress(row);
+  }
+
+  // Quietly migrate any older browser-only saves into the signed-in account.
+  const legacyRows=Object.entries(local)
+    .filter(([projectId])=>!cloudIds.has(projectId))
+    .map(([projectId,state])=>{
+      const normalized=normalizeProgress(state);
+      return {
+        user_id:userId,
+        project_id:projectId,
+        design:normalized.design,
+        notes:normalized.notes,
+        tested:normalized.tested,
+        started_at:normalized.startedAt,
+        updated_at:normalized.updatedAt
+      };
+    });
+
+  if(legacyRows.length){
+    const {error:migrationError}=await supabase
+      .from('project_progress')
+      .upsert(legacyRows,{onConflict:'user_id,project_id'});
+    if(migrationError)console.warn('Could not migrate older local saves.',migrationError);
+  }
+
+  writeSaved(progressCache);
+}
+
+async function saveCurrent({notify=true}={}){
   if(!active)return;
+  const textarea=document.querySelector('#project-notes');
+  if(textarea)notes=textarea.value;
+
+  const previous=progressCache[active.id]||{};
+  const state={
+    design:{...design},
+    notes,
+    tested,
+    startedAt:previous.startedAt||new Date().toISOString(),
+    updatedAt:new Date().toISOString()
+  };
+
+  progressCache[active.id]=state;
   const all=saved();
-  all[active.id]={design,notes,tested,updatedAt:new Date().toISOString()};
+  all[active.id]=state;
   writeSaved(all);
-  toast('Project saved on this device.');
+
+  const {error}=await supabase.from('project_progress').upsert({
+    user_id:userId,
+    project_id:active.id,
+    design:state.design,
+    notes:state.notes,
+    tested:state.tested,
+    started_at:state.startedAt,
+    updated_at:state.updatedAt
+  },{onConflict:'user_id,project_id'});
+
+  if(error){
+    console.error('Cloud save failed.',error);
+    if(notify)toast('Saved on this device, but account sync failed.');
+    return;
+  }
+  if(notify)toast('Project saved to your account.');
+}
+
+function queueAutoSave(){
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer=setTimeout(()=>saveCurrent({notify:false}),650);
+}
+
+async function deleteProjectProgress(id){
+  const project=projects.find(p=>p.id===id);
+  const name=project?.title||id;
+  const ok=window.confirm(`Remove "${name}" from My Projects?\n\nThis deletes your saved design and notes, but the project will stay in the project library.`);
+  if(!ok)return;
+
+  const {error}=await supabase
+    .from('project_progress')
+    .delete()
+    .eq('user_id',userId)
+    .eq('project_id',id);
+
+  if(error){
+    console.error('Could not delete project progress.',error);
+    toast('Could not remove this project. Try again.');
+    return;
+  }
+
+  delete progressCache[id];
+  const all=saved();
+  delete all[id];
+  writeSaved(all);
+  render();
+  toast('Removed from My Projects.');
 }
 function toast(text){const node=document.querySelector('#toast');if(!node)return;node.textContent=text;node.classList.add('visible');setTimeout(()=>node.classList.remove('visible'),1800)}
 function showTestPopup(result){
@@ -53,10 +172,80 @@ function header(){
   return `<header class="topbar"><button class="brand" data-home>specly<small>Engineering for your portfolio</small></button><div class="topright"><span class="storage">${email?`Signed in · ${esc(email)}`:'Member studio · local saves'}</span><a class="button small" href="./commerce.html">Account & billing</a></div></header>`
 }
 
+
+function progressStatus(project,state){
+  if(!state?.tested)return {label:'Started',className:'started'};
+  try{
+    const merged={...project.design,...(state.design||{})};
+    const r=evaluateMission(project.mission,merged);
+    const passed=r.checks.filter(c=>c.pass).length;
+    const total=r.checks.length;
+    return r.pass
+      ? {label:`${passed}/${total} tests passed`,className:'passed'}
+      : {label:`${passed}/${total} tests passed`,className:'revise'};
+  }catch{
+    return {label:'In progress',className:'started'};
+  }
+}
+
+function updatedLabel(value){
+  if(!value)return 'Recently';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime()))return 'Recently';
+  return `Updated ${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}`;
+}
+
+function myProjectsBar(){
+  const entries=Object.entries(progressCache)
+    .map(([id,state])=>({project:projects.find(p=>p.id===id),state}))
+    .filter(x=>x.project)
+    .sort((a,b)=>new Date(b.state.updatedAt||0)-new Date(a.state.updatedAt||0));
+
+  if(!entries.length){
+    return `<section class="my-projects empty-projects" aria-labelledby="my-projects-heading">
+      <div class="my-projects-head">
+        <div>
+          <p class="eyebrow" id="my-projects-heading">My Projects</p>
+          <h2>Your attempted projects will live here.</h2>
+          <p>Open any RFP to start it. Specly will save your design, notes, and latest test state to your account automatically.</p>
+        </div>
+        <span class="my-project-count">0 saved</span>
+      </div>
+    </section>`;
+  }
+
+  return `<section class="my-projects" aria-labelledby="my-projects-heading">
+    <div class="my-projects-head">
+      <div>
+        <p class="eyebrow" id="my-projects-heading">My Projects</p>
+        <h2>Pick up where you left off.</h2>
+        <p>Your attempted projects are saved to your account across sessions.</p>
+      </div>
+      <span class="my-project-count">${entries.length} saved</span>
+    </div>
+    <div class="my-projects-track">
+      ${entries.map(({project,state})=>{
+        const status=progressStatus(project,state);
+        return `<article class="my-project-card">
+          <div class="my-project-top">
+            <span>${esc(project.id)}</span>
+            <button class="my-project-delete" type="button" data-delete-project="${esc(project.id)}" aria-label="Remove ${esc(project.title)} from My Projects">×</button>
+          </div>
+          <button class="my-project-open" type="button" data-project="${esc(project.id)}">
+            <span class="my-project-type">${esc(families[project.type].name)} · ${difficultyLabels[project.level]}</span>
+            <strong>${esc(project.title)}</strong>
+            <span class="my-project-meta"><i class="${status.className}">${esc(status.label)}</i><small>${esc(updatedLabel(state.updatedAt))}</small></span>
+          </button>
+        </article>`;
+      }).join('')}
+    </div>
+  </section>`;
+}
+
 function catalog(){
   const visible=projects.filter(p=>p.level===selectedDifficulty);
   const difficultyName=difficultyLabels[selectedDifficulty];
-  return `<main id="main" class="sample-main"><section class="intro"><div><div class="eyebrow">Member studio</div><h1>Choose a problem.<br><em>Build engineering evidence.</em></h1><p>Every project starts with an industry-inspired RFP, numerical requirements, a real-world engineering need, analytical verification, required deliverables, and a portfolio-ready story. Pick a difficulty and solve one like an engineer—not just a calculator.</p><div class="library-growth"><strong>45 guided projects.</strong> Each one gives you a problem statement, success criteria, trade study, validation plan, and report you can turn into portfolio material.</div></div></section><section class="library-filter" aria-labelledby="difficulty-heading"><div><p class="eyebrow" id="difficulty-heading">Project library</p><h2>${difficultyName} projects</h2><p>Showing ${visible.length} of ${projects.length} member projects.</p></div><div class="difficulty-select"><label for="difficulty-filter">Difficulty</label><select id="difficulty-filter" data-difficulty><option value="beginner" ${selectedDifficulty==='beginner'?'selected':''}>Easy</option><option value="intermediate" ${selectedDifficulty==='intermediate'?'selected':''}>Medium</option><option value="advanced" ${selectedDifficulty==='advanced'?'selected':''}>Hard</option></select></div></section><div class="sectionbar"><strong>${difficultyName}</strong><span class="count">${visible.length} projects</span></div><div class="cards">${visible.map(p=>`<article class="missioncard" style="--accent:${families[p.type].color}"><div class="cardtop"><span>${families[p.type].name}</span><span>${p.id}</span></div><div class="diagram sample-card-diagram">${missionDiagram(p.type,p.design)}</div><div class="cardbody"><span class="industry-chip">${esc(p.industry)}</span><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p></div><div class="cardfoot"><span>${difficultyLabels[p.level]}</span><button class="circlebutton" data-project="${p.id}">Open RFP →</button></div></article>`).join('')}</div><footer><span>Specly · Your work. Your decisions.</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
+  return `<main id="main" class="sample-main"><section class="intro"><div><div class="eyebrow">Member studio</div><h1>Choose a problem.<br><em>Build engineering evidence.</em></h1><p>Every project starts with an industry-inspired RFP, numerical requirements, a real-world engineering need, analytical verification, required deliverables, and a portfolio-ready story. Pick a difficulty and solve one like an engineer—not just a calculator.</p><div class="library-growth"><strong>45 guided projects.</strong> Each one gives you a problem statement, success criteria, trade study, validation plan, and report you can turn into portfolio material.</div></div></section>${myProjectsBar()}<section class="library-filter" aria-labelledby="difficulty-heading"><div><p class="eyebrow" id="difficulty-heading">Project library</p><h2>${difficultyName} projects</h2><p>Showing ${visible.length} of ${projects.length} member projects.</p></div><div class="difficulty-select"><label for="difficulty-filter">Difficulty</label><select id="difficulty-filter" data-difficulty><option value="beginner" ${selectedDifficulty==='beginner'?'selected':''}>Easy</option><option value="intermediate" ${selectedDifficulty==='intermediate'?'selected':''}>Medium</option><option value="advanced" ${selectedDifficulty==='advanced'?'selected':''}>Hard</option></select></div></section><div class="sectionbar"><strong>${difficultyName}</strong><span class="count">${visible.length} projects</span></div><div class="cards">${visible.map(p=>`<article class="missioncard" style="--accent:${families[p.type].color}"><div class="cardtop"><span>${families[p.type].name}</span><span>${p.id}</span></div><div class="diagram sample-card-diagram">${missionDiagram(p.type,p.design)}</div><div class="cardbody"><span class="industry-chip">${esc(p.industry)}</span><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p></div><div class="cardfoot"><span>${difficultyLabels[p.level]}</span><button class="circlebutton" data-project="${p.id}">Open RFP →</button></div></article>`).join('')}</div><footer><span>Specly · Your work. Your decisions.</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
 }
 
 function metrics(result){
@@ -115,18 +304,22 @@ function portfolioPanel(){
 }
 
 function workspace(){
-  return `<main id="main" class="sample-main"><div class="workspacehead"><div><p class="eyebrow">${difficultyLabels[active.level]} · ${families[active.type].name}</p><h1>${esc(active.title)}</h1><p>${esc(active.description)}</p></div><button class="button ghost" data-home>All projects</button></div>${rfpSection()}<section class="design-stage"><div class="design-stage-head"><div><p class="eyebrow">Design + analysis</p><h2>Develop your response to the RFP.</h2><p>${esc(active.objective)}</p></div></div><div class="workgrid"><section class="panel controls"><p class="eyebrow">Design variables</p><h3>Build a configuration</h3>${controls()}<div class="field"><label for="project-notes">Engineering notes</label><textarea id="project-notes" rows="7" placeholder="Record each revision, the requirement driving the change, assumptions, margins, and what you would test next…">${esc(notes)}</textarea></div><div class="actions"><button class="button primary" data-test>Run RFP check →</button><button class="button ghost" data-save>Save revision</button><button class="button ghost" data-export>Export report</button></div><p class="note">Saved locally in this browser. Export the report to keep a portable copy of the RFP, requirements, design, results, and validation plan.</p></section><div id="member-visual">${visual()}</div></div></section><section class="panel" id="member-results" aria-live="polite">${results()}</section>${portfolioPanel()}<details class="panel"><summary>Model assumptions and limitations</summary><p>${esc(active.assumptions)}</p></details><footer><span>Specly · ${esc(active.id)}</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
+  return `<main id="main" class="sample-main"><div class="workspacehead"><div><p class="eyebrow">${difficultyLabels[active.level]} · ${families[active.type].name}</p><h1>${esc(active.title)}</h1><p>${esc(active.description)}</p></div><button class="button ghost" data-home>All projects</button></div>${rfpSection()}<section class="design-stage"><div class="design-stage-head"><div><p class="eyebrow">Design + analysis</p><h2>Develop your response to the RFP.</h2><p>${esc(active.objective)}</p></div></div><div class="workgrid"><section class="panel controls"><p class="eyebrow">Design variables</p><h3>Build a configuration</h3>${controls()}<div class="field"><label for="project-notes">Engineering notes</label><textarea id="project-notes" rows="7" placeholder="Record each revision, the requirement driving the change, assumptions, margins, and what you would test next…">${esc(notes)}</textarea></div><div class="actions"><button class="button primary" data-test>Run RFP check →</button><button class="button ghost" data-save>Save revision</button><button class="button ghost" data-export>Export report</button></div><p class="note">Progress is saved automatically to your Specly account. Export the report anytime for a portable copy of the RFP, requirements, design, results, and validation plan.</p></section><div id="member-visual">${visual()}</div></div></section><section class="panel" id="member-results" aria-live="polite">${results()}</section>${portfolioPanel()}<details class="panel"><summary>Model assumptions and limitations</summary><p>${esc(active.assumptions)}</p></details><footer><span>Specly · ${esc(active.id)}</span><span><a href="./terms.html">Terms</a> · <a href="./privacy.html">Privacy</a> · <a href="./refund.html">Refunds</a> · <a href="./faq.html">FAQ</a> · <a href="./contact.html">Contact</a></span></footer></main>`;
 }
 
 function render(){app.innerHTML=header()+(active?workspace():catalog());}
 function openProject(id){
   active=projects.find(p=>p.id===id);
   if(!active)return;
-  const state=saved()[id];
+  const state=progressCache[id]||saved()[id];
   design=state?.design?{...active.design,...state.design}:{...active.design};
   notes=state?.notes||'';
   tested=Boolean(state?.tested);
-  render();window.scrollTo(0,0);
+  render();
+  window.scrollTo(0,0);
+
+  // Opening a project counts as starting it, so it appears in My Projects.
+  if(!state)saveCurrent({notify:false});
 }
 
 function exportReport(){
@@ -167,23 +360,32 @@ async function copyPortfolio(){
 }
 
 document.addEventListener('click',e=>{
+  const del=e.target.closest('[data-delete-project]');
+  if(del){
+    e.preventDefault();
+    e.stopPropagation();
+    deleteProjectProgress(del.dataset.deleteProject);
+    return;
+  }
+
   const p=e.target.closest('[data-project]');if(p)openProject(p.dataset.project);
   if(e.target.closest('[data-home]')){active=null;render();window.scrollTo(0,0)}
-  if(e.target.closest('[data-test]')){const r=evaluateMission(active.mission,design);tested=true;saveCurrent();render();showTestPopup(r);document.querySelector('#member-results')?.scrollIntoView({behavior:'smooth',block:'center'})}
+  if(e.target.closest('[data-test]')){const r=evaluateMission(active.mission,design);tested=true;saveCurrent({notify:false});render();showTestPopup(r);document.querySelector('#member-results')?.scrollIntoView({behavior:'smooth',block:'center'})}
   if(e.target.closest('[data-save]'))saveCurrent();
-  if(e.target.closest('[data-export]')){notes=document.querySelector('#project-notes')?.value||notes;saveCurrent();exportReport()}
+  if(e.target.closest('[data-export]')){notes=document.querySelector('#project-notes')?.value||notes;saveCurrent({notify:false});exportReport()}
   if(e.target.closest('[data-copy-portfolio]'))copyPortfolio();
 });
 
 document.addEventListener('input',e=>{
   if(!active)return;
-  if(e.target.id==='project-notes'){notes=e.target.value;return}
+  if(e.target.id==='project-notes'){notes=e.target.value;queueAutoSave();return}
   const key=e.target.dataset.param;if(!key)return;
   design={...design,[key]:Number(e.target.value)};tested=false;
   document.querySelector('#value-'+key).textContent=design[key];
   document.querySelector('#member-visual').innerHTML=visual();
   document.querySelector('#member-results').innerHTML='<p>Design changed. Run the RFP check to verify this revision.</p>';
   const pp=document.querySelector('.portfolio-panel');if(pp)pp.outerHTML=portfolioPanel();
+  queueAutoSave();
 });
 
 document.addEventListener('change',e=>{
@@ -198,9 +400,10 @@ document.addEventListener('change',e=>{
   document.querySelector('#member-visual').innerHTML=visual();
   document.querySelector('#member-results').innerHTML='<p>Material changed. Run the RFP check to verify this revision.</p>';
   const pp=document.querySelector('.portfolio-panel');if(pp)pp.outerHTML=portfolioPanel();
+  queueAutoSave();
 });
 
 (async()=>{
   app.innerHTML='<main style="max-width:680px;margin:12vh auto;padding:24px"><p class="eyebrow">Member studio</p><h1>Loading your project library…</h1></main>';
-  try{await fetchProjects();render()}catch(error){console.error(error);app.innerHTML='<main style="max-width:680px;margin:12vh auto;padding:24px"><h1>We couldn’t load the member library.</h1><p>Your membership is active, but the project service did not respond. Refresh, or open Account & billing.</p><a href="./commerce.html">Account & billing</a></main>'}
+  try{await fetchProjects();await loadProjectProgress();render()}catch(error){console.error(error);app.innerHTML='<main style="max-width:680px;margin:12vh auto;padding:24px"><h1>We couldn’t load the member library.</h1><p>Your membership is active, but the project service did not respond. Refresh, or open Account & billing.</p><a href="./commerce.html">Account & billing</a></main>'}
 })();
