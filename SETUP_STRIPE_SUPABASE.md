@@ -1,3 +1,12 @@
+
+## IMPORTANT: Supabase Auth production URLs
+In **Authentication → URL Configuration**, set:
+
+- Site URL: `https://GuptaAishani.github.io/Specly/`
+- Additional Redirect URL: `https://GuptaAishani.github.io/Specly/commerce.html`
+
+The production `commerce.js` also hardcodes that exact redirect for passwordless sign-in so testing from localhost does not create a localhost email link. If you later move Specly to a custom domain, update both Supabase URL Configuration and `AUTH_REDIRECT_URL` in `commerce.js`.
+
 # Specly Stripe + Supabase completion checklist
 
 The GitHub Pages frontend is now wired for Supabase Auth, Stripe Checkout, member access, billing management, and the 45-project member studio. The remaining steps are server-side setup in Supabase and Stripe.

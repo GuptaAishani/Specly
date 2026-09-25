@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = "https://mpseexgimmtdfqtirohj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_FrtttA6zw63UzoVoeqs8XQ_21Mkp4oS";
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const AUTH_REDIRECT_URL = "https://GuptaAishani.github.io/Specly/commerce.html";
 
 const $ = (selector) => document.querySelector(selector);
 const card = $("#account-card");
@@ -85,10 +86,9 @@ async function handleSignIn(event) {
   if (!email) return;
   button.disabled=true; message("Sending your sign-in link…");
   try {
-    const redirectTo = `${location.origin}${location.pathname}`;
-    const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
+    const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo:AUTH_REDIRECT_URL } });
     if(error)throw error;
-    message("Check your email for the secure sign-in link.");
+    message("Check your email for the secure sign-in link. It will return you to Specly after you click it.");
   } catch(error){console.error(error);message(error.message||"Could not send the sign-in link.",true)}
   finally{button.disabled=false}
 }
